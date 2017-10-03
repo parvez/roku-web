@@ -1,0 +1,143 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+  <head>
+    <title>Roku Remote</title>
+    <meta name="viewport" content="width=400" />
+    <link rel="stylesheet" href="css/bootstrap.min.css" type="text/css">
+    <link rel="stylesheet" href="css/font-awesome.min.css" type="text/css" media="screen">
+    <style type="text/css">
+      body > div { width: 400px; margin: 4px; border: 1px solid #454545; }
+      hr { margin: 5px 0; }
+      .nav { margin: 5px; }
+      .btn { font-family: monospace; margin: 2px; }
+      .btn-channel { font-size: 10px; border: 0; padding: 2px; }
+      .btn-logo { width: 120px; }
+      .btn-keypress { padding: 11px; }
+    </style>
+  </head>
+  <body>
+    <div id="main">
+      <ul class="nav nav-pills">
+        <li role="presentation" class="active"><a data-toggle="tab" href="#tabChannels">Channels</a></li>
+        <li role="presentation"><a data-toggle="tab" href="#tabNavigation">Navigation</a></li>
+        <li role="presentation"><a data-toggle="tab" href="#tabKeys">Keys</a></li>
+      </ul>
+      <div class="tab-content">
+        <div id="tabChannels" class="tab-pane fade in active">
+          <div id="channels"></div>
+        </div>
+        <div id="tabNavigation" class="tab-pane fade">
+          <div id="remote2"></div>
+        </div>
+        <div id="tabKeys" class="tab-pane fade">
+          <div id="remote1"></div>
+        </div>
+      </div>
+    </div>
+    <script src="js/jquery-3.2.1.min.js" type="text/javascript"></script>
+    <script src="js/bootstrap.min.js" type="text/javascript"></script>
+    <script type="text/javascript">
+      (function($) {
+        var b = {};
+        b.set1 = "abcdefghijklmnopqrstuvwxyz".split("");
+        b.set2 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+        b.set3 = "1234567890".split("");
+        b.set4 = [
+          { c: "VolumeDown", i: "fa fa-volume-down" },
+          { c: "VolumeMute", i: "fa fa-volume-off" },
+          { c: "VolumeUp", i: "fa fa-volume-up" },
+          { c: "PowerOff", i: "fa fa-power-off" }
+        ];
+        b.set5 = [
+          { c: "Home", i: "fa fa-home" },
+          { c: "Rev", i: "fa fa-backward" },
+          { c: "Play", i: "fa fa-play" },
+          { c: "Fwd", i: "fa fa-forward" },
+          { c: "Search", i: "fa fa-search" },
+          { c: "Info", i: "fa fa-info" }
+        ];
+        b.set6 = [
+          { c: "Left", i: "fa fa-arrow-left", k: '37' },
+          { c: "Down", i: "fa fa-arrow-down", k: '40' },
+          { c: "Up", i: "fa fa-arrow-up", k: '38' },
+          { c: "Right", i: "fa fa-arrow-right", k: '39' },
+          { c: "Select", i: "fa fa-sign-in", k: '13' },
+          "Back"
+        ];
+        b.set7 = [
+          "Enter",
+          { c: "Backspace", i: "fa fa-eraser", k: '8' },
+          "InstantReplay"
+        ];
+        $.each(b, function (key, data) {
+          var ref1 = (['set1', 'set2', 'set3'].indexOf(key) >= 0) ? "Lit_" : "";
+          var ref2 = (['set1', 'set2', 'set3'].indexOf(key) >= 0) ? "1" : "2";
+          $("#remote" + ref2).append( '<hr />' );
+          $.each(data, function (index, value) {
+            var button; 
+            var akey;
+            if (value && value.c && value.i) {
+              akey = (value && value.k) ? "akey=" + value.k : "";
+              button = $("<a href='#' class='btn btn-default btn-keypress' " + akey + " ref='" + ref1 + value.c +"'><i class='" + value.i + "' /></a>");
+            } else {
+              if (['set2', 'set3'].indexOf(key) >= 0) {
+                akey = "akey=" + value;
+              }
+              button = $("<a href='#' class='btn btn-default btn-keypress' " + akey + " ref='" + ref1 + value +"'>" + value + "</a>");
+            }
+            $("#remote" + ref2).append( button );
+          })
+        });
+        $.ajax({
+          url: "/roku/query/apps",
+          type: 'GET',
+          success: function(xml) {
+            $("#channels").append( '<hr />' );
+            $(xml).find('app').each(function() {
+              var t = $(this);
+              var button = (
+                $("<div class='btn btn-default btn-channel' ref='" + t.attr('id') +"'>" + 
+                  "<img class='btn-logo' src='/roku/query/icon/" + t.attr('id') + "' title='" + t.text() + "' /></div>")
+              );
+              $("#channels").append( button );
+            });
+            $(".btn-channel").off("click").on("click", function(e) {
+              var key = $(this).attr("ref");
+              if (key) {
+                $.ajax({
+                  url: "/roku/launch/" + key,
+                  type: 'POST',
+                  data: ''
+                });
+              }
+            });
+          }
+        });
+        $(".btn-keypress").off("click").on("click", function(e) {
+          e.preventDefault();
+          var key = $(this).attr("ref");
+          if (key) {
+            $.ajax({
+              url: "/roku/keypress/" + key,
+              type: 'POST',
+              data: ''
+            });
+          }
+        });
+        $(window).off("keypress").on("keyup", function(event) {
+          var akey1 = String.fromCharCode(event.keyCode);
+          var done = false;
+          $("[akey]").each(function(idx, el) {
+            var akey2 = $(el).attr("akey");
+            if (!done && (event.keyCode === parseInt(akey2, 10) || akey1 === akey2)) {
+              done = true;
+              $(el).trigger("click");
+            }
+          });
+          event.preventDefault();
+        });
+      }(jQuery));
+    </script>
+  </body>
+</html>
+
